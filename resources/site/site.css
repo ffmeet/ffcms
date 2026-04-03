@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@source "../views/site/**/*.blade.php";
+
+@theme {
+    --font-sans: "PingFang SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
