@@ -55,4 +55,31 @@ class UserResource extends Resource
             'edit' => EditUser::route('/{record}/edit'),
         ];
     }
+
+    public static function normalizeProfileData(array $data): array
+    {
+        $data['first_name'] = blank($data['first_name'] ?? null) ? null : trim((string) $data['first_name']);
+        $data['last_name'] = blank($data['last_name'] ?? null) ? null : trim((string) $data['last_name']);
+        $data['bio'] = blank($data['bio'] ?? null) ? null : trim((string) $data['bio']);
+
+        $strategy = (string) ($data['nickname_strategy'] ?? 'manual');
+        $manualNickname = blank($data['nickname'] ?? null) ? null : trim((string) $data['nickname']);
+        $username = trim((string) ($data['username'] ?? ''));
+
+        $data['nickname'] = User::resolveNickname(
+            $strategy,
+            $data['first_name'] ?? null,
+            $data['last_name'] ?? null,
+            $manualNickname,
+            $username,
+        );
+
+        if ($data['nickname'] === '') {
+            $data['nickname'] = null;
+        }
+
+        unset($data['nickname_strategy']);
+
+        return $data;
+    }
 }

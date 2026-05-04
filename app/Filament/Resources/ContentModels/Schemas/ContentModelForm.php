@@ -72,6 +72,16 @@ class ContentModelForm
                         Toggle::make('required')
                             ->label('必填')
                             ->default(false),
+                        TextInput::make('placeholder')
+                            ->label('占位提示')
+                            ->maxLength(255),
+                        TextInput::make('default')
+                            ->label('默认值')
+                            ->helperText('数字字段填数字，开关字段可填 true / false，下拉字段需填写已有选项。'),
+                        TextInput::make('helper_text')
+                            ->label('帮助说明')
+                            ->maxLength(255)
+                            ->columnSpanFull(),
                         TagsInput::make('options')
                             ->label('可选项')
                             ->placeholder('输入选项后按回车')
@@ -82,7 +92,7 @@ class ContentModelForm
                             ->columnSpanFull(),
                     ])
                     ->columns(2)
-                    ->helperText('V1 支持 text、textarea、number、select、toggle；select 可继续配置候选项。'),
+                    ->helperText('支持 text、textarea、number、select、toggle；现在也可配置默认值、占位提示和帮助说明。'),
             ]);
     }
 }

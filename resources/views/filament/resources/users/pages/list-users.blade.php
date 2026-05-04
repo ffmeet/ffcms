@@ -79,6 +79,7 @@
                 <span>操作</span>
                 <span>文章</span>
                 <span>评论</span>
+                <span>订阅</span>
             </div>
 
             @forelse ($users as $user)

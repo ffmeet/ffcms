@@ -2,6 +2,8 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\RedirectUnauthorizedAdminSession;
+use App\Models\SiteSetting;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -15,6 +17,8 @@ use Filament\Widgets\AccountWidget;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
@@ -31,33 +35,31 @@ class AdminPanelProvider extends PanelProvider
             ->default()
             ->id('admin')
             ->path('admin')
-            ->brandLogo(new HtmlString(<<<'HTML'
-<div
-    x-data="{}"
-    x-bind:style="$store.sidebar.isOpen ? '--ecms-brand-width: calc(var(--sidebar-width) - 5.45rem)' : '--ecms-brand-width: calc(var(--collapsed-sidebar-width) - 2.55rem)'"
-    class="ecms-brand-shell"
->
-    <span
-        x-show="$store.sidebar.isOpen"
-        x-cloak
-        class="ecms-brand-full"
-    >
-        <span class="ecms-brand-mark">帝</span>
-        <span class="ecms-brand-copy">
-            <span class="ecms-brand-title">帝国 CMS</span>
-        </span>
-    </span>
+            ->brandLogo(function (): HtmlString {
+                $settings = Schema::hasTable('site_settings')
+                    ? SiteSetting::current()
+                    : SiteSetting::make(SiteSetting::defaults());
 
-    <span
-        x-show="! $store.sidebar.isOpen"
-        x-cloak
-        class="ecms-brand-compact"
-    >
-        帝
-    </span>
-</div>
-HTML))
-            ->brandName('帝国 CMS 控制台')
+                $brandName = e($settings->site_name ?: 'FFMeet');
+                $brandMark = e($settings->logo_text ?: '帝');
+                $brandLogoPath = $settings->admin_logo_path ?: $settings->frontend_logo_path;
+                $brandIcon = filled($brandLogoPath)
+                    ? e(Storage::disk('public')->url($brandLogoPath))
+                    : null;
+
+                return new HtmlString(view('filament.components.admin-brand', [
+                    'brandName' => $brandName,
+                    'brandMark' => $brandMark,
+                    'brandIcon' => $brandIcon,
+                ])->render());
+            })
+            ->brandName(function (): string {
+                $settings = Schema::hasTable('site_settings')
+                    ? SiteSetting::current()
+                    : SiteSetting::make(SiteSetting::defaults());
+
+                return ($settings->site_name ?: 'FFMeet').' 控制台';
+            })
             ->homeUrl(fn (): string => url('/admin'))
             ->login()
             ->viteTheme('resources/css/filament/admin/theme.css')
@@ -69,6 +71,18 @@ HTML))
             ->sidebarCollapsibleOnDesktop()
             ->sidebarFullyCollapsibleOnDesktop()
             ->collapsedSidebarWidth('5rem')
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                function (): string {
+                    $settings = Schema::hasTable('site_settings')
+                        ? SiteSetting::current()
+                        : SiteSetting::make(SiteSetting::defaults());
+
+                    return view('partials.site-favicons', [
+                        'settings' => $settings,
+                    ])->render();
+                }
+            )
             ->renderHook(
                 PanelsRenderHook::TOPBAR_LOGO_AFTER,
                 fn (): string => Blade::render("@include('filament.components.topbar-nav')")
@@ -110,6 +124,7 @@ HTML))
                 DispatchServingFilamentEvent::class,
             ])
             ->authMiddleware([
+                RedirectUnauthorizedAdminSession::class,
                 Authenticate::class,
             ]);
     }

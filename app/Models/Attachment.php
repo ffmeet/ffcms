@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
+use Slimani\MediaManager\Models\File as MediaFile;
 
 class Attachment extends Model
 {
@@ -13,6 +14,7 @@ class Attachment extends Model
 
     protected $fillable = [
         'user_id',
+        'media_file_id',
         'filename',
         'filepath',
         'mime_type',
@@ -22,6 +24,11 @@ class Attachment extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function mediaFile(): BelongsTo
+    {
+        return $this->belongsTo(MediaFile::class, 'media_file_id');
     }
 
     public function getUrlAttribute(): ?string

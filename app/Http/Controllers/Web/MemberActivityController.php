@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Support\SiteTheme;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -13,9 +14,12 @@ class MemberActivityController extends Controller
     {
         $user = $request->user();
 
-        return view('site.member.activities.center', [
+        return view(SiteTheme::view('member.activities-center', 'themes.default.member.activities-center'), [
             'user' => $user,
             'activitySummary' => $this->buildActivitySummary($user),
+            'upcomingRegistrations' => $this->upcomingRegistrations($user),
+            'recentOrders' => $this->recentOrders($user),
+            'recentSubscriptions' => $this->recentSubscriptions($user),
         ]);
     }
 
@@ -23,54 +27,60 @@ class MemberActivityController extends Controller
     {
         $user = $request->user();
 
-        return view('site.member.activities.index', [
+        return view(SiteTheme::view('member.activities-index', 'themes.default.member.activities-index'), [
             'user' => $user,
             'activitySummary' => $this->buildActivitySummary($user),
-            'timeline' => $this->buildTimeline($user),
+            'registrations' => $user->eventRegistrations()
+                ->with(['event', 'order.payments'])
+                ->latest()
+                ->paginate(10)
+                ->withQueryString(),
+            'recentOrders' => $this->recentOrders($user, 8),
+            'recentSubscriptions' => $this->recentSubscriptions($user, 6),
         ]);
     }
 
     protected function buildActivitySummary($user): array
     {
         return [
-            'published_posts' => $user->posts()->where('status', 'published')->count(),
-            'pending_posts' => $user->posts()->where('status', 'pending')->count(),
-            'draft_posts' => $user->posts()->where('status', 'draft')->count(),
-            'approved_comments' => $user->comments()->where('status', 'approved')->count(),
+            'event_registrations' => $user->eventRegistrations()->count(),
+            'pending_registrations' => $user->eventRegistrations()->where('status', 'pending')->count(),
+            'upcoming_events' => $user->eventRegistrations()
+                ->whereIn('status', ['pending', 'approved'])
+                ->whereHas('event', fn ($query) => $query->whereNotNull('starts_at')->where('starts_at', '>=', now()))
+                ->count(),
+            'pending_orders' => $user->orders()->where('status', 'pending')->count(),
+            'active_subscriptions' => $user->subscriptions()->where('status', 'active')->count(),
+            'pending_subscriptions' => $user->subscriptions()->where('status', 'pending')->count(),
         ];
     }
 
-    protected function buildTimeline($user): Collection
+    protected function upcomingRegistrations($user, int $limit = 4): Collection
     {
-        $postTimeline = $user->posts()
-            ->latest('updated_at')
-            ->limit(6)
-            ->get()
-            ->map(fn ($post) => [
-                'type' => '稿件',
-                'title' => $post->title,
-                'description' => $post->status === 'published' ? '稿件已发布到前台。' : ($post->status === 'pending' ? '稿件已提交审核。' : '稿件保存在草稿箱。'),
-                'time' => optional($post->updated_at)->format('Y-m-d H:i'),
-                'badge' => $post->status === 'published' ? '已发布' : ($post->status === 'pending' ? '待审核' : '草稿'),
-            ]);
-
-        $commentTimeline = $user->comments()
-            ->with('post')
+        return $user->eventRegistrations()
+            ->with('event')
+            ->whereIn('status', ['pending', 'approved'])
+            ->whereHas('event', fn ($query) => $query->whereNotNull('starts_at')->where('starts_at', '>=', now()))
             ->latest()
-            ->limit(6)
-            ->get()
-            ->map(fn ($comment) => [
-                'type' => '评论',
-                'title' => $comment->post?->title ?? '评论动态',
-                'description' => mb_strimwidth($comment->content, 0, 64, '...'),
-                'time' => optional($comment->created_at)->format('Y-m-d H:i'),
-                'badge' => $comment->status === 'approved' ? '已通过' : '待审核',
-            ]);
+            ->limit($limit)
+            ->get();
+    }
 
-        return $postTimeline
-            ->concat($commentTimeline)
-            ->sortByDesc('time')
-            ->take(10)
-            ->values();
+    protected function recentOrders($user, int $limit = 6): Collection
+    {
+        return $user->orders()
+            ->with('payments')
+            ->latest()
+            ->limit($limit)
+            ->get();
+    }
+
+    protected function recentSubscriptions($user, int $limit = 4): Collection
+    {
+        return $user->subscriptions()
+            ->with(['plan', 'lastOrder'])
+            ->latest()
+            ->limit($limit)
+            ->get();
     }
 }

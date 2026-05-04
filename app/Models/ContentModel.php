@@ -30,7 +30,7 @@ class ContentModel extends Model
     }
 
     /**
-     * @return array<int, array{name: string, label: string, type: string, required: bool, options: array<int, string>}>
+     * @return array<int, array{name: string, label: string, type: string, required: bool, options: array<int, string>, placeholder: string, helper_text: string, default: mixed}>
      */
     public function normalizedFieldConfig(): array
     {

@@ -3,6 +3,7 @@
     $statusClass = $record->status === 'active' ? 'is-active' : 'is-inactive';
     $editUrl = \App\Filament\Resources\Users\UserResource::getUrl('edit', ['record' => $record]);
     $initial = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($record->username, 0, 1));
+    $permissionSummary = collect($record->memberGroup?->enabledPermissionLabels() ?? [])->take(2)->implode(' · ');
 @endphp
 
 <div class="ecms-user-card">
@@ -34,6 +35,9 @@
     <div class="ecms-user-card-block ecms-user-card-block-group">
         <span class="ecms-user-card-block-label">级别</span>
         <strong class="ecms-user-card-block-value">{{ $record->memberGroup?->name ?? '未分组' }}</strong>
+        @if ($permissionSummary)
+            <p class="mt-1 text-xs text-slate-400">{{ $permissionSummary }}</p>
+        @endif
     </div>
 
     <div class="ecms-user-card-actions">
@@ -60,5 +64,10 @@
     <div class="ecms-user-card-stat">
         <span class="ecms-user-card-stat-label">评论</span>
         <strong>{{ number_format((int) $record->comments_count) }}</strong>
+    </div>
+
+    <div class="ecms-user-card-stat">
+        <span class="ecms-user-card-stat-label">订阅</span>
+        <strong>{{ number_format((int) $record->active_subscriptions_count) }}</strong>
     </div>
 </div>

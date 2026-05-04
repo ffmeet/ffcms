@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
+use Throwable;
 use Illuminate\Validation\ValidationException;
 use Slimani\MediaManager\Form\RichEditor\MediaManagerRichContentPlugin;
 use Slimani\MediaManager\Concerns\InteractsWithMediaFiles;
@@ -41,12 +42,18 @@ class Post extends Model implements CommentableContract, HasRichContent
         'user_id',
         'status',
         'published_at',
+        'is_headline',
+        'is_featured',
+        'is_recommended',
     ];
 
     protected function casts(): array
     {
         return [
             'published_at' => 'datetime',
+            'is_headline' => 'boolean',
+            'is_featured' => 'boolean',
+            'is_recommended' => 'boolean',
         ];
     }
 
@@ -55,6 +62,28 @@ class Post extends Model implements CommentableContract, HasRichContent
         return $query
             ->where('status', 'published')
             ->whereNotNull('published_at');
+    }
+
+    public function scopeNonFlash(Builder $query): Builder
+    {
+        return $query->whereHas('contentModel', function (Builder $builder): void {
+            $builder->whereNotIn('table_name', self::FLASH_MODEL_TABLE_NAMES);
+        });
+    }
+
+    public function scopeHeadline(Builder $query): Builder
+    {
+        return $query->where('is_headline', true);
+    }
+
+    public function scopeFeaturedPlacement(Builder $query): Builder
+    {
+        return $query->where('is_featured', true);
+    }
+
+    public function scopeRecommendedPlacement(Builder $query): Builder
+    {
+        return $query->where('is_recommended', true);
     }
 
     protected function setUpRichContent(): void
@@ -131,6 +160,29 @@ class Post extends Model implements CommentableContract, HasRichContent
             $data['published_at'] = null;
         }
 
+        $data['is_headline'] = (bool) ($data['is_headline'] ?? false);
+        $data['is_featured'] = (bool) ($data['is_featured'] ?? false);
+        $data['is_recommended'] = (bool) ($data['is_recommended'] ?? false);
+
+        if (static::isFlashModelId($data['model_id'] ?? null)) {
+            $data['is_headline'] = false;
+            $data['is_featured'] = false;
+            $data['is_recommended'] = false;
+        }
+
+        if ($data['is_headline']) {
+            $data['is_featured'] = false;
+            $data['is_recommended'] = false;
+        }
+
+        if ($data['is_featured']) {
+            $data['is_recommended'] = false;
+        }
+
+        if ($data['is_recommended']) {
+            $data['is_featured'] = false;
+        }
+
         $data['seo_title'] = filled($seoTitle) ? $seoTitle : $title;
 
         if (blank($summary) && filled($data['content'] ?? null)) {
@@ -140,6 +192,18 @@ class Post extends Model implements CommentableContract, HasRichContent
         $data['summary'] = $summary;
 
         return $data;
+    }
+
+    public static function syncEditorialPlacementsForRecord(self $record): void
+    {
+        if (! $record->is_headline) {
+            return;
+        }
+
+        static::query()
+            ->whereKeyNot($record->getKey())
+            ->where('is_headline', true)
+            ->update(['is_headline' => false]);
     }
 
     public static function resolveModelIdFromCategory(?int $categoryId, mixed $fallback = null): ?int
@@ -164,6 +228,10 @@ class Post extends Model implements CommentableContract, HasRichContent
         }
 
         if (blank($category->model_id)) {
+            if (filled($modelId)) {
+                return (int) $modelId;
+            }
+
             throw ValidationException::withMessages([
                 'category_id' => '所选栏目尚未绑定内容模型，请先到栏目管理里完成绑定。',
             ]);
@@ -223,7 +291,7 @@ class Post extends Model implements CommentableContract, HasRichContent
     {
         return filled($this->author_name)
             ? $this->author_name
-            : (string) ($this->user?->username ?? '匿名');
+            : (string) ($this->user?->public_display_name ?? $this->user?->username ?? '匿名');
     }
 
     public function getPublicUrlAttribute(): string
@@ -271,6 +339,10 @@ class Post extends Model implements CommentableContract, HasRichContent
             return $this->coverMedia->getUrl('preview');
         }
 
+        if ($this->custom_cover_image_url) {
+            return $this->custom_cover_image_url;
+        }
+
         return $this->cover_attachment?->url;
     }
 
@@ -283,6 +355,45 @@ class Post extends Model implements CommentableContract, HasRichContent
         return $this->detail()->value('content');
     }
 
+    public function renderContentForFrontend(): string
+    {
+        $content = $this->content;
+
+        if (blank($content)) {
+            return '<p>当前文章还没有正文内容。</p>';
+        }
+
+        if (is_array($content) && Arr::has($content, 'type')) {
+            try {
+                return $this->renderRichContent('content');
+            } catch (Throwable) {
+                return '<p>当前正文暂时无法按富文本格式渲染。</p>';
+            }
+        }
+
+        $trimmed = trim((string) $content);
+
+        if ($trimmed === '') {
+            return '<p>当前文章还没有正文内容。</p>';
+        }
+
+        if (str_starts_with($trimmed, '<')) {
+            return $trimmed;
+        }
+
+        $decoded = json_decode($trimmed, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && Arr::has($decoded, 'type')) {
+            try {
+                return $this->renderRichContent('content');
+            } catch (Throwable) {
+                return '<p>当前正文暂时无法按富文本格式渲染。</p>';
+            }
+        }
+
+        return nl2br(e($trimmed));
+    }
+
     public function getCoverAttachmentIdAttribute(): ?int
     {
         $coverId = Arr::get($this->detail?->custom_fields, 'cover_attachment_id');
@@ -293,6 +404,13 @@ class Post extends Model implements CommentableContract, HasRichContent
     public function getAttachmentIdsAttribute(): array
     {
         return array_values(Arr::get($this->detail?->custom_fields, 'attachment_ids', []));
+    }
+
+    public function getCustomCoverImageUrlAttribute(): ?string
+    {
+        $coverImageUrl = Arr::get($this->detail?->custom_fields, 'cover_image_url');
+
+        return filled($coverImageUrl) ? (string) $coverImageUrl : null;
     }
 
     public function getCoverAttachmentAttribute(): ?Attachment

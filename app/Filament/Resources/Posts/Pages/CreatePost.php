@@ -99,6 +99,8 @@ class CreatePost extends CreateRecord
 
         /** @var Model $record */
         $record = static::getModel()::create($data);
+        static::getModel()::syncEditorialPlacementsForRecord($record);
+        $record->refresh();
 
         if ($record->isFlashModel()) {
             $record->update([

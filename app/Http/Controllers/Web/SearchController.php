@@ -3,7 +3,10 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\Category;
 use App\Models\Post;
+use App\Models\Tag;
+use App\Support\SiteTheme;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\Request;
 
@@ -30,9 +33,19 @@ class SearchController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        return view('site.search', [
+        return view(SiteTheme::view('pages.search', 'themes.default.pages.search'), [
             'query' => $query,
             'posts' => $posts,
+            'trendingTags' => Tag::query()
+                ->orderByDesc('count')
+                ->orderBy('name')
+                ->limit(12)
+                ->get(),
+            'featuredCategories' => Category::query()
+                ->withCount('posts')
+                ->orderBy('sort_order')
+                ->limit(6)
+                ->get(),
         ]);
     }
 }

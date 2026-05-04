@@ -17,6 +17,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Group;
@@ -87,9 +88,60 @@ class PostForm
                                             ])
                                             ->columnSpanFull(),
                                         Section::make('模型字段')
-                                            ->description('根据当前内容模型自动显示扩展字段。')
+                                            ->inlineLabel()
+                                            ->compact()
+                                            ->collapsible()
+                                            ->collapsed()
+                                            ->icon('heroicon-o-chevron-right')
                                             ->visible(fn (Get $get): bool => ContentModelFieldManager::buildPostFormFieldsForModelId($get('model_id')) !== [])
                                             ->schema(fn (Get $get): array => ContentModelFieldManager::buildPostFormFieldsForModelId($get('model_id')))
+                                            ->columnSpanFull(),
+                                        Section::make('编排与 SEO')
+                                            ->visible(fn (Get $get): bool => ! static::isFlashModel($get))
+                                            ->inlineLabel()
+                                            ->compact()
+                                            ->columns(2)
+                                            ->schema([
+                                                DateTimePicker::make('published_at')
+                                                    ->label('发布时间')
+                                                    ->default(now()),
+                                                TextInput::make('seo_title')
+                                                    ->label('SEO 标题')
+                                                    ->maxLength(255),
+                                                Grid::make(3)
+                                                    ->columnSpanFull()
+                                                    ->schema([
+                                                        Toggle::make('is_headline')
+                                                            ->label('头条')
+                                                            ->live()
+                                                            ->inlineLabel(false)
+                                                            ->afterStateUpdated(function (mixed $state, Set $set): void {
+                                                                if ($state) {
+                                                                    $set('is_featured', false);
+                                                                    $set('is_recommended', false);
+                                                                }
+                                                            }),
+                                                        Toggle::make('is_featured')
+                                                            ->label('精选')
+                                                            ->inlineLabel(false)
+                                                            ->live()
+                                                            ->disabled(fn (Get $get): bool => (bool) $get('is_headline'))
+                                                            ->afterStateUpdated(function (mixed $state, Set $set): void {
+                                                                if ($state) {
+                                                                    $set('is_recommended', false);
+                                                                }
+                                                            }),
+                                                        Toggle::make('is_recommended')
+                                                            ->label('推荐')
+                                                            ->inlineLabel(false)
+                                                            ->disabled(fn (Get $get): bool => (bool) $get('is_headline'))
+                                                            ->afterStateUpdated(function (mixed $state, Set $set): void {
+                                                                if ($state) {
+                                                                    $set('is_featured', false);
+                                                                }
+                                                            }),
+                                                    ]),
+                                            ])
                                             ->columnSpanFull(),
                                     ]),
                                 Section::make(fn (Get $get): string => static::isFlashModel($get) ? '录入信息' : '基础信息')
@@ -147,6 +199,7 @@ class PostForm
                                     ]),
                                 Section::make(fn (Get $get): string => static::isFlashModel($get) ? '快讯发布' : '发布设置')
                                     ->inlineLabel()
+                                    ->compact()
                                     ->schema([
                                         Select::make('status')
                                             ->required()
@@ -160,10 +213,9 @@ class PostForm
                                             ->native(false),
                                         Select::make('category_id')
                                             ->label('栏目')
-                                            ->options(fn (Get $get): array => static::categoryOptions($get))
-                                            ->searchable()
-                                            ->preload()
+                                            ->options(fn (): array => static::categoryOptions())
                                             ->default(fn (Get $get): ?int => static::defaultCategoryId($get))
+                                            ->native(true)
                                             ->live()
                                             ->afterStateUpdated(function (mixed $state, Set $set): void {
                                                 $modelId = filled($state)
@@ -173,10 +225,6 @@ class PostForm
                                                 $set('model_id', $modelId);
                                             })
                                             ->required(),
-                                        DateTimePicker::make('published_at')
-                                            ->label(fn (Get $get): string => static::isFlashModel($get) ? '时间' : '发布时间')
-                                            ->default(now())
-                                            ->helperText(null),
                                         TextInput::make('slug')
                                             ->label('别名')
                                             ->required()
@@ -202,10 +250,6 @@ class PostForm
                                             ->label('封面媒体'),
                                     ]),
                                 Group::make([
-                                    TextInput::make('seo_title')
-                                        ->label('SEO 标题')
-                                        ->visible(fn (Get $get): bool => ! static::isFlashModel($get))
-                                        ->maxLength(255),
                                     Placeholder::make('model_hint')
                                         ->hiddenLabel()
                                         ->content(fn (Get $get): HtmlString => new HtmlString(sprintf(
@@ -304,13 +348,24 @@ class PostForm
             ->value('id');
     }
 
-    protected static function categoryOptions(Get $get): array
+    public static function categoryOptions(): array
     {
         return Category::query()
-            ->where('model_id', static::defaultModelId($get) ?: $get('model_id'))
+            ->with('contentModel')
             ->orderBy('sort_order')
             ->orderBy('id')
-            ->pluck('name', 'id')
+            ->get()
+            ->mapWithKeys(function (Category $category): array {
+                $prefix = str_repeat(' - ', max(0, (int) $category->level));
+                $modelName = $category->contentModel?->name;
+                $label = $prefix.$category->name;
+
+                if (filled($modelName)) {
+                    $label .= ' ['.$modelName.']';
+                }
+
+                return [$category->id => $label];
+            })
             ->all();
     }
 }

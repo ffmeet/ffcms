@@ -16,7 +16,7 @@ class PublishingWorkflowTest extends TestCase
     public function test_normalize_publishing_data_generates_slug_and_publish_time(): void
     {
         $data = Post::normalizePublishingData([
-            'title' => 'Empire CMS Publishing Workflow',
+            'title' => 'FFMeet Publishing Workflow',
             'slug' => '',
             'status' => 'published',
             'published_at' => null,
@@ -25,8 +25,8 @@ class PublishingWorkflowTest extends TestCase
             'summary' => '',
         ]);
 
-        $this->assertSame('empire-cms-publishing-workflow', $data['slug']);
-        $this->assertSame('Empire CMS Publishing Workflow', $data['seo_title']);
+        $this->assertSame('ffmeet-publishing-workflow', $data['slug']);
+        $this->assertSame('FFMeet Publishing Workflow', $data['seo_title']);
         $this->assertSame('Publishing summary content for frontend rendering.', $data['summary']);
         $this->assertNotNull($data['published_at']);
     }

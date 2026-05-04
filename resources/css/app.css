@@ -6,6 +6,173 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Helvetica Neue', 'PingFang SC', 'Noto Sans SC', 'Microsoft YaHei', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-serif: 'Songti SC', 'Noto Serif SC', Georgia, serif;
+    --color-brand-50: #eef5ff;
+    --color-brand-500: #2c5cff;
+    --color-brand-700: #163b9a;
+}
+
+@layer base {
+    body {
+        background: #ffffff;
+        color: #151515;
+    }
+}
+
+@layer components {
+    .site-feature-shell {
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 2.125rem;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+    }
+
+    .site-section-shell {
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 2.125rem;
+        box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+    }
+
+    .site-section-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        justify-content: space-between;
+        gap: 1rem;
+    }
+
+    .site-section-kicker {
+        font-size: 0.6875rem;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.34em;
+        text-transform: uppercase;
+        color: #64748b;
+    }
+
+    .site-card {
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.7);
+        background: rgba(255, 255, 255, 0.9);
+        border-radius: 1.75rem;
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.06);
+        transition:
+            transform 180ms ease,
+            box-shadow 180ms ease;
+    }
+
+    .site-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 26px 90px rgba(15, 23, 42, 0.1);
+    }
+
+    .site-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.375rem;
+        border-radius: 999px;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        line-height: 1;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        background: #f8fafc;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+    }
+
+    .site-chip--brand {
+        background: #eef5ff;
+        border-color: #cfe0ff;
+        color: #163b9a;
+    }
+
+    .site-chip--emerald {
+        background: #ecfdf5;
+        border-color: #bbf7d0;
+        color: #047857;
+    }
+
+    .site-chip--amber {
+        background: #fffbeb;
+        border-color: #fde68a;
+        color: #b45309;
+    }
+
+    .site-chip--rose {
+        background: #fff1f2;
+        border-color: #fecdd3;
+        color: #be123c;
+    }
+
+    .site-chip--slate {
+        background: #f8fafc;
+        border-color: #e2e8f0;
+        color: #475569;
+    }
+
+    .site-prose {
+        color: #3f3a35;
+        font-size: 1.05rem;
+        line-height: 2.05;
+    }
+
+    .site-prose > * + * {
+        margin-top: 1.5rem;
+    }
+
+    .site-prose h2,
+    .site-prose h3,
+    .site-prose h4 {
+        color: #151515;
+        font-family: var(--font-serif);
+        font-weight: 600;
+        letter-spacing: -0.02em;
+    }
+
+    .site-prose h2 {
+        font-size: 1.875rem;
+        line-height: 1.25;
+    }
+
+    .site-prose h3 {
+        font-size: 1.5rem;
+        line-height: 1.35;
+    }
+
+    .site-prose p,
+    .site-prose li {
+        line-height: 2;
+    }
+
+    .site-prose a {
+        color: #151515;
+        text-decoration: underline;
+        text-underline-offset: 0.25rem;
+    }
+
+    .site-prose blockquote {
+        border-left: 3px solid #d8d1c8;
+        padding-left: 1rem;
+        color: #5f574f;
+    }
+
+    .site-prose img {
+        border-radius: 1.5rem;
+    }
+
+    .site-pagination nav {
+        display: flex;
+        justify-content: center;
+    }
+
+    .site-pagination svg {
+        width: 1rem;
+        height: 1rem;
+    }
 }

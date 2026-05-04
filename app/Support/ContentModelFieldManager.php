@@ -3,11 +3,11 @@
 namespace App\Support;
 
 use App\Models\ContentModel;
-use Filament\Forms\Components\Component;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Component;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 
@@ -28,7 +28,7 @@ class ContentModelFieldManager
 
     /**
      * @param  array<int|string, mixed> | null  $fieldConfig
-     * @return array<int, array{name: string, label: string, type: string, required: bool, options: array<int, string>}>
+     * @return array<int, array{name: string, label: string, type: string, required: bool, options: array<int, string>, placeholder: string, helper_text: string, default: mixed}>
      */
     public static function normalizeFieldConfig(array|null $fieldConfig): array
     {
@@ -48,6 +48,9 @@ class ContentModelFieldManager
                         'type' => 'text',
                         'required' => false,
                         'options' => [],
+                        'placeholder' => '',
+                        'helper_text' => '',
+                        'default' => null,
                     ];
                 })
                 ->filter(fn (array $field): bool => filled($field['name']))
@@ -74,6 +77,9 @@ class ContentModelFieldManager
                     'type' => $type,
                     'required' => (bool) ($field['required'] ?? false),
                     'options' => $type === 'select' ? $options : [],
+                    'placeholder' => trim((string) ($field['placeholder'] ?? '')),
+                    'helper_text' => trim((string) ($field['helper_text'] ?? '')),
+                    'default' => static::normalizeDefaultValue($type, $field['default'] ?? null, $options),
                 ];
             })
             ->filter(fn (array $field): bool => filled($field['name']) && filled($field['label']))
@@ -158,7 +164,7 @@ class ContentModelFieldManager
     }
 
     /**
-     * @param  array{name: string, label: string, type: string, required: bool, options: array<int, string>}  $field
+     * @param  array{name: string, label: string, type: string, required: bool, options: array<int, string>, placeholder: string, helper_text: string, default: mixed}  $field
      */
     protected static function buildPostFormField(array $field): Component
     {
@@ -168,29 +174,58 @@ class ContentModelFieldManager
             'textarea' => Textarea::make($statePath)
                 ->label($field['label'])
                 ->rows(4)
+                ->placeholder($field['placeholder'])
+                ->default($field['default'])
                 ->required($field['required'])
+                ->inlineLabel()
                 ->columnSpanFull()
                 ->key("dynamic-field-{$field['name']}"),
             'number' => TextInput::make($statePath)
                 ->label($field['label'])
                 ->numeric()
+                ->placeholder($field['placeholder'])
+                ->default($field['default'])
                 ->required($field['required'])
+                ->inlineLabel()
                 ->key("dynamic-field-{$field['name']}"),
             'select' => Select::make($statePath)
                 ->label($field['label'])
                 ->options(array_combine($field['options'], $field['options']) ?: [])
+                ->default($field['default'])
                 ->required($field['required'])
                 ->native(false)
+                ->inlineLabel()
                 ->key("dynamic-field-{$field['name']}"),
             'toggle' => Toggle::make($statePath)
                 ->label($field['label'])
-                ->default(false)
+                ->default($field['default'] ?? false)
                 ->required($field['required'])
+                ->inlineLabel(false)
                 ->key("dynamic-field-{$field['name']}"),
             default => TextInput::make($statePath)
                 ->label($field['label'])
+                ->placeholder($field['placeholder'])
+                ->default($field['default'])
                 ->required($field['required'])
+                ->inlineLabel()
                 ->key("dynamic-field-{$field['name']}"),
+        };
+    }
+
+    /**
+     * @param  array<int, string>  $options
+     */
+    protected static function normalizeDefaultValue(string $type, mixed $default, array $options): mixed
+    {
+        if ($default === null || $default === '') {
+            return $type === 'toggle' ? false : null;
+        }
+
+        return match ($type) {
+            'number' => is_numeric($default) ? $default + 0 : null,
+            'toggle' => filter_var($default, FILTER_VALIDATE_BOOL) || $default === true || $default === 1 || $default === '1',
+            'select' => in_array((string) $default, $options, true) ? (string) $default : null,
+            default => trim((string) $default),
         };
     }
 }

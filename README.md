@@ -1,59 +1,166 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# FFMeet
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+FFMeet 是一套基于 `Laravel 12` 与 `Filament 5.3` 的内容、会员、活动、商品与订单一体化系统。
 
-## About Laravel
+当前 `v1.0` 的定位是**生产观察版**：
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- 前台主题浏览与内容发布链路已基本闭环
+- 会员中心、评论、作者、活动、商品、订单与订阅链路已可用
+- 后台提供主题切换、首页设置、缓存中心与公开开发文档中心
+- 真实第三方支付仍建议后续按单一渠道继续正式接入
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## 当前版本能力
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- 多主题前台结构，当前主用主题为 `xiaofang`
+- 文章、分类、标签、作者页与评论系统
+- 活动列表、活动详情、报名与订单闭环
+- 商品详情、会员订阅、订单与支付基础链路
+- 公开开发文档中心
+- 后台首页位置位配置与缓存管理
 
-## Learning Laravel
+## 技术基线
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- PHP `^8.2`
+- Laravel `^12.0`
+- Filament `^5.3`
+- Livewire `4.x`
+- 默认开发数据库：`SQLite`
+- 正式推荐生产数据库：`MySQL 8+ / MariaDB 10.6+`
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+## 快速开始
 
-## Laravel Sponsors
+### 本地开发
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+cp .env.example .env
+composer install
+npm install
+php artisan key:generate
+touch database/database.sqlite
+php artisan migrate
+npm run build
+composer serve:upload-safe
+```
 
-### Premium Partners
+如需后台管理员，请手动创建：
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```bash
+php artisan ffmeet:create-admin admin admin@example.com --name="Site Admin"
+```
 
-## Contributing
+### 生产部署
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+cp .env.example .env
+composer install --no-dev --optimize-autoloader
+npm install
+npm run build
+php artisan key:generate
+php artisan migrate --force
+php artisan storage:link
+php artisan optimize:clear
+php artisan view:cache
+```
 
-## Code of Conduct
+然后创建首个管理员：
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan ffmeet:create-admin admin admin@example.com --name="Site Admin"
+```
 
-## Security Vulnerabilities
+生产环境请至少确认：
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+- `APP_ENV=production`
+- `APP_DEBUG=false`
+- `APP_URL` 为正式域名
+- `DB_*` 为正式数据库配置
+- `MAIL_*` 为真实邮件配置
 
-## License
+## 安全对外发布源码
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+不要直接压缩你本机项目目录发给别人。
+
+当前项目已经提供安全源码包脚本：
+
+```bash
+composer package:source
+```
+
+或：
+
+```bash
+bash scripts/build-source-package.sh v1.0.0
+```
+
+它会自动排除：
+
+- `.env`
+- 本地 SQLite 数据库
+- `storage/logs`
+- `storage/debugbar`
+- `vendor`
+- `node_modules`
+- `public/storage`
+- `.git`
+
+详细说明见：
+
+- [对外源码包与安装说明](./docs/release/source-package-and-install.md)
+
+默认安装不会自动附带固定后台用户名和密码。
+
+## 开发文档
+
+项目内已经整理了公开开发文档，重点包括：
+
+- 发布与审计
+- 主题与首页位置系统
+- 文章、活动、会员与支付调用说明
+- 主题模板函数调用规范
+- Filament 插件与版本清单
+- 路由与权限矩阵
+
+入口见：
+
+- [文档首页](./docs/README.md)
+- [文档目录](./docs/SUMMARY.md)
+
+## 常用脚本
+
+### 上传安全启动
+
+```bash
+composer serve:upload-safe
+```
+
+这个脚本会以更高上传限制启动本地 PHP Server，适合测试：
+
+- 前台封面上传
+- Filament 媒体上传
+- 媒体库附件创建
+
+### 安全源码打包
+
+```bash
+composer package:source
+```
+
+## 当前边界
+
+`v1.0` 目前最重要的未完成项是：
+
+- 真实第三方支付渠道的正式落地与验签闭环
+
+因此，当前更适合：
+
+- 先上线生产观察版
+- 用真实流量验证前台、会员、内容、活动、商品与订单链路
+- 后续再按单一优先渠道补正式支付
+
+## 许可证
+
+当前仓库附带：
+
+- [LICENSE](./LICENSE)
+
+当前许可证采用保守的社区预览口径，适合公开代码、评估、测试与二次开发准备阶段；如需更宽的商用或再分发权限，应另行明确授权方案。

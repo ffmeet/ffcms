@@ -1,0 +1,34 @@
+# 文档目录
+
+- [文档首页](./README.md)
+- 发布
+  - [1.0 发布清单](./release/1.0-release-plan.md)
+  - [1.0 审计与安全复核](./release/1.0-readiness-audit.md)
+  - [对外源码包与安装说明](./release/source-package-and-install.md)
+  - [公开仓库前检查清单](./release/public-repository-checklist.md)
+  - [Git 初始化与首个提交说明](./release/git-initialization-and-first-commit.md)
+  - [GitHub 仓库命名与首次发布说明](./release/github-repository-launch-guide.md)
+- 架构
+  - [系统总览](./architecture/overview.md)
+  - [主题与首页位置系统](./architecture/themes-and-homepage-slots.md)
+  - [会员、订单与支付链路](./architecture/membership-and-commerce.md)
+- 开发
+  - [二次开发指南](./development/secondary-development.md)
+  - [安装与部署说明](./development/installation-and-deployment.md)
+  - [主题模板函数调用规范](./development/theme-template-call-conventions.md)
+  - [控制器 / Builder / Blade 三层分工示例](./development/controller-builder-blade-layering.md)
+  - [首页内容调用开发说明](./development/homepage-content-calls.md)
+  - [文章与活动调用说明](./development/content-and-event-calls.md)
+  - [会员与支付调用说明](./development/member-commerce-calls.md)
+  - [Filament 插件与版本清单](./development/filament-plugin-inventory.md)
+  - [路由与权限矩阵](./development/routes-and-permissions.md)
+- 运维
+  - [缓存与部署](./operations/cache-and-deployment.md)
+- 安全
+  - [安全基线](./security/security-baseline.md)
+  - [支付渠道接入与验签矩阵](./security/payment-provider-matrix.md)
+- 现有专题说明
+  - [首页数据来源](./HOMEPAGE_DATA_SOURCE.md)
+  - [会员资料显示规则](./MEMBER_PROFILE_DISPLAY_RULES.md)
+  - [Codex 执行计划](./CODEX_EXECUTION_PLAN.md)
+  - [Codex 交接记录](./CODEX_HANDOFF.md)
