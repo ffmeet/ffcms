@@ -25,9 +25,10 @@ class AttachmentForm
                     ->disk('public')
                     ->directory('attachments')
                     ->visibility('public')
+                    ->maxSize(10240)
                     ->preserveFilenames()
                     ->dehydrated(false)
-                    ->helperText('当前阶段先使用本地 public 存储，后续再扩展云存储和更复杂的上传流程.')
+                    ->helperText('当前阶段先使用本地 public 存储，单个文件建议控制在 10MB 以内，后续再扩展云存储和更复杂的上传流程。')
                     ->columnSpanFull(),
                 TextInput::make('filename')
                     ->label('文件名')

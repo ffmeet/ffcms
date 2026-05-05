@@ -1,10 +1,10 @@
 @php
     $items = [
-        ['label' => '内容', 'pattern' => 'filament.admin.resources.posts.*', 'url' => url('/admin/posts')],
-        ['label' => '栏目', 'pattern' => 'filament.admin.resources.categories.*', 'url' => url('/admin/categories')],
-        ['label' => '会员', 'pattern' => 'filament.admin.resources.users.*', 'url' => url('/admin/users')],
-        ['label' => '评论', 'pattern' => 'filament.admin.resources.comments.*', 'url' => url('/admin/comments')],
-        ['label' => '媒体', 'pattern' => 'filament.admin.pages.media-manager', 'url' => url('/admin/media-manager')],
+        ['label' => '商品', 'pattern' => 'filament.admin.resources.products.*', 'url' => \App\Filament\Resources\Products\ProductResource::getUrl()],
+        ['label' => '订单', 'pattern' => 'filament.admin.resources.orders.*', 'url' => \App\Filament\Resources\Orders\OrderResource::getUrl()],
+        ['label' => '支付', 'pattern' => 'filament.admin.resources.payments.*', 'url' => \App\Filament\Resources\Payments\PaymentResource::getUrl()],
+        ['label' => '订阅', 'pattern' => 'filament.admin.resources.user-subscriptions.*', 'url' => \App\Filament\Resources\UserSubscriptions\UserSubscriptionResource::getUrl()],
+        ['label' => '报名', 'pattern' => 'filament.admin.resources.event-registrations.*', 'url' => \App\Filament\Resources\EventRegistrations\EventRegistrationResource::getUrl()],
     ];
 @endphp
 

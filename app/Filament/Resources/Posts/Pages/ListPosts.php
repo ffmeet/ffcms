@@ -6,6 +6,7 @@ use App\Filament\Resources\Posts\PostResource;
 use App\Models\Category;
 use App\Models\ContentModel;
 use App\Models\Post;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -82,14 +83,24 @@ class ListPosts extends ListRecords
 
     public function getPostsProperty(): LengthAwarePaginator
     {
-        return PostResource::getEloquentQuery()
+        $query = PostResource::getEloquentQuery()
             ->when(filled($this->statusFilter), fn ($query) => $query->where('status', $this->statusFilter))
             ->when(filled($this->modelFilter), fn ($query) => $query->where('model_id', $this->modelFilter))
-            ->when(filled($this->categoryFilter), fn ($query) => $query->where('category_id', $this->categoryFilter))
-            ->latest('published_at')
-            ->latest('id')
+            ->when(filled($this->categoryFilter), fn ($query) => $query->where('category_id', $this->categoryFilter));
+
+        $this->applyDefaultOrdering($query);
+
+        return $query
             ->paginate((int) $this->perPage)
             ->withQueryString();
+    }
+
+    protected function applyDefaultOrdering($query): void
+    {
+        $query
+            ->orderByRaw('COALESCE(published_at, created_at) DESC')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id');
     }
 
     /**
@@ -165,5 +176,38 @@ class ListPosts extends ListRecords
         Post::query()->whereIn('id', $this->selectedPostIds)->delete();
 
         $this->selectedPostIds = [];
+    }
+
+    public function approveSelected(): void
+    {
+        if ($this->selectedPostIds === []) {
+            return;
+        }
+
+        $selectedIds = $this->selectedPostIds;
+
+        Post::query()
+            ->whereIn('id', $selectedIds)
+            ->where('status', '!=', 'published')
+            ->get()
+            ->each(function (Post $post): void {
+                $post->update([
+                    'status' => 'published',
+                    'published_at' => $post->published_at ?? now(),
+                ]);
+            });
+
+        $approvedCount = Post::query()
+            ->whereIn('id', $selectedIds)
+            ->where('status', 'published')
+            ->count();
+
+        $this->selectedPostIds = [];
+
+        Notification::make()
+            ->success()
+            ->title('批量审核完成')
+            ->body("已处理 {$approvedCount} 篇文章。")
+            ->send();
     }
 }

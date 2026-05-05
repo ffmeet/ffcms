@@ -50,7 +50,7 @@
                 <span class="ecms-topbar-notification-item-dot"></span>
                 <div>
                     <h4>稿件状态更新</h4>
-                    <p>《帝国 CMS 重构启动》已有新的审核进展，可以进入稿件中心继续处理。</p>
+                    <p>《FFMeet 1.0 发布准备》已有新的审核进展，可以进入稿件中心继续处理。</p>
                     <time>刚刚</time>
                 </div>
             </article>

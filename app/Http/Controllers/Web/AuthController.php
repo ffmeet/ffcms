@@ -5,9 +5,11 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\MemberGroup;
 use App\Models\User;
+use App\Support\SiteTheme;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -15,7 +17,7 @@ class AuthController extends Controller
 {
     public function showLogin(): View
     {
-        return view('site.auth.login');
+        return view(SiteTheme::view('auth.login'));
     }
 
     public function login(Request $request): RedirectResponse
@@ -44,7 +46,69 @@ class AuthController extends Controller
 
     public function showRegister(): View
     {
-        return view('site.auth.register');
+        return view(SiteTheme::view('auth.register'));
+    }
+
+    public function showForgotPassword(): View
+    {
+        return view(SiteTheme::view('auth.forgot-password'));
+    }
+
+    public function sendResetLink(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $status = Password::sendResetLink([
+            'email' => $data['email'],
+        ]);
+
+        if ($status === Password::RESET_LINK_SENT) {
+            return back()->with('status', __($status));
+        }
+
+        return back()
+            ->withInput()
+            ->withErrors([
+                'email' => __($status),
+            ]);
+    }
+
+    public function showResetPassword(Request $request, string $token): View
+    {
+        return view(SiteTheme::view('auth.reset-password'), [
+            'token' => $token,
+            'email' => $request->string('email')->toString(),
+        ]);
+    }
+
+    public function resetPassword(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $status = Password::reset(
+            $data,
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password_hash' => $password,
+                ])->save();
+            }
+        );
+
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')->with('status', '密码已重置，现在可以使用新密码登录。');
+        }
+
+        return back()
+            ->withInput($request->except('password', 'password_confirmation'))
+            ->withErrors([
+                'email' => __($status),
+            ]);
     }
 
     public function register(Request $request): RedirectResponse
@@ -56,12 +120,17 @@ class AuthController extends Controller
         ]);
 
         $defaultGroupId = MemberGroup::query()
-            ->firstOrCreate(
+            ->updateOrCreate(
                 ['name' => '默认会员'],
                 [
                     'min_points' => 0,
                     'max_points' => 9999,
-                    'permissions' => ['site.access' => true],
+                    'permissions' => [
+                        'site.access' => true,
+                        'member.center' => true,
+                        'shop.access' => true,
+                        'events.access' => true,
+                    ],
                 ],
             )
             ->id;

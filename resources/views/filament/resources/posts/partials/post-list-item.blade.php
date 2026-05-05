@@ -13,8 +13,6 @@
     };
     $time = $record->published_at ?? $record->created_at;
     $editUrl = \App\Filament\Resources\Posts\PostResource::getUrl('edit', ['record' => $record]);
-    $viewUrl = \App\Filament\Resources\Posts\PostResource::getUrl('view', ['record' => $record]);
-    $previewUrl = filled($record->slug) ? $record->public_url : null;
 @endphp
 
 <div class="ecms-post-card">
@@ -56,29 +54,9 @@
                 <span class="ecms-post-card-category">{{ $record->category->name }}</span>
             @endif
 
-            <details class="ecms-post-card-menu">
-                <summary class="ecms-post-card-menu-trigger" aria-label="更多操作">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </summary>
-
-                <div class="ecms-post-card-menu-dropdown">
-                    @if ($previewUrl)
-                        <a href="{{ $previewUrl }}" target="_blank" rel="noreferrer" class="ecms-post-card-menu-item">
-                            查看预览
-                        </a>
-                    @endif
-
-                    <a href="{{ $viewUrl }}" class="ecms-post-card-menu-item">
-                        查看详情
-                    </a>
-
-                    <a href="{{ $editUrl }}" class="ecms-post-card-menu-item">
-                        编辑文章
-                    </a>
-                </div>
-            </details>
+            <a href="{{ $editUrl }}" class="ecms-post-card-edit-link" aria-label="编辑文章">
+                <x-heroicon-o-pencil-square class="ecms-post-card-edit-icon" />
+            </a>
         </div>
     </div>
 

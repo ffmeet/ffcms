@@ -36,6 +36,12 @@
         "sort-packages": true
     },
     "scripts": {
+        "serve:upload-safe": [
+            "bash scripts/serve-upload-safe.sh"
+        ],
+        "package:source": [
+            "bash scripts/build-source-package.sh"
+        ],
         "post-autoload-dump": [
             "@php artisan filament:upgrade"
         ]

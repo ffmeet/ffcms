@@ -9,8 +9,8 @@ use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Support\Enums\FontWeight;
+use App\Support\UploadDiagnostics;
 use Illuminate\Support\Facades\File as FileFacade;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Http\UploadedFile;
@@ -98,9 +98,11 @@ class MediaBrowser extends \Slimani\MediaManager\Livewire\MediaBrowser
                 FileUpload::make('files')
                     ->label('Files')
                     ->multiple()
+                    ->maxSize(10240)
                     ->preserveFilenames()
                     ->disk(config('livewire.temporary_file_upload.disk'))
                     ->directory(config('livewire.temporary_file_upload.directory'))
+                    ->helperText('单个文件建议控制在 10MB 以内。')
                     ->required(),
                 TagsInput::make('tags')
                     ->suggestions(Tag::pluck('name')->toArray()),
@@ -148,13 +150,26 @@ class MediaBrowser extends \Slimani\MediaManager\Livewire\MediaBrowser
                     'height' => $media->getCustomProperty('height'),
                 ]);
 
+                UploadDiagnostics::log('media_browser.upload.stored', [
+                    'user_id' => auth()->id(),
+                    'file_id' => $fileModel->id,
+                    'filename' => $filename,
+                    'disk' => config('livewire.temporary_file_upload.disk'),
+                    'directory' => config('livewire.temporary_file_upload.directory'),
+                    'media_id' => $media->id,
+                    'size' => $media->size,
+                    'mime_type' => $media->mime_type,
+                ]);
+
                 $createdIds[] = $fileModel->id;
             } catch (\Throwable $exception) {
-                Log::error('Media Manager Upload Error: '.$exception->getMessage(), [
+                UploadDiagnostics::log('media_browser.upload.failed', [
+                    'user_id' => auth()->id(),
+                    'file_id' => $fileModel->id,
                     'file' => $filename,
                     'disk' => config('livewire.temporary_file_upload.disk'),
                     'directory' => config('livewire.temporary_file_upload.directory'),
-                ]);
+                ] + UploadDiagnostics::throwableContext($exception), 'error');
 
                 $fileModel->delete();
 

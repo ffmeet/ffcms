@@ -10,6 +10,8 @@ use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Enums\Alignment;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
+use Illuminate\Support\HtmlString;
 use Illuminate\Support\Str;
 
 class EditPost extends EditRecord
@@ -36,7 +38,7 @@ class EditPost extends EditRecord
     protected function mutateFormDataBeforeFill(array $data): array
     {
         $data['post_kind'] = $this->record->isFlashModel() ? 'flash' : 'article';
-        $data['content'] = $this->record->detail?->content;
+        $data['content'] = $this->normalizeEditorContent($this->record->detail?->content);
         $customFields = $this->record->detail?->custom_fields ?? [];
         $data['seo_title'] = $customFields['seo_title'] ?? null;
         $data['summary'] = $customFields['summary'] ?? null;
@@ -49,6 +51,61 @@ class EditPost extends EditRecord
         );
 
         return $data;
+    }
+
+    protected function normalizeEditorContent(mixed $content): array|string|null
+    {
+        if ($content instanceof HtmlString) {
+            return $content->toHtml();
+        }
+
+        if (blank($content)) {
+            return null;
+        }
+
+        if (is_array($content) && Arr::has($content, 'type')) {
+            return $content;
+        }
+
+        if (is_string($content)) {
+            $trimmed = trim($content);
+
+            if ($trimmed === '') {
+                return null;
+            }
+
+            if (str_starts_with($trimmed, '<')) {
+                return $trimmed;
+            }
+
+            $decoded = json_decode($trimmed, true);
+
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && Arr::has($decoded, 'type')) {
+                return $decoded;
+            }
+
+            return [
+                'type' => 'doc',
+                'content' => [[
+                    'type' => 'paragraph',
+                    'content' => [[
+                        'type' => 'text',
+                        'text' => $trimmed,
+                    ]],
+                ]],
+            ];
+        }
+
+        return [
+            'type' => 'doc',
+            'content' => [[
+                'type' => 'paragraph',
+                'content' => [[
+                    'type' => 'text',
+                    'text' => (string) $content,
+                ]],
+            ]],
+        ];
     }
 
     protected function mutateFormDataBeforeSave(array $data): array
@@ -82,6 +139,8 @@ class EditPost extends EditRecord
         unset($data['content'], $data['custom_fields'], $data['coverMediaFiles'], $data['attachmentMediaFiles'], $data['seo_title'], $data['summary'], $data['author_name'], $data['tag_names']);
 
         $record->update($data);
+        $record::syncEditorialPlacementsForRecord($record);
+        $record->refresh();
 
         if ($record->isFlashModel()) {
             $record->update([
@@ -138,6 +197,7 @@ class EditPost extends EditRecord
                 ->url(fn (): string => $this->record->public_url)
                 ->openUrlInNewTab(),
             DeleteAction::make()
+                ->label('删除')
                 ->color('gray')
                 ->outlined()
                 ->extraAttributes(['class' => 'ecms-soft-header-action']),

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Support\SiteTheme;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -44,7 +45,7 @@ class MemberCommentController extends Controller
             ->paginate(12)
             ->withQueryString();
 
-        return view('site.member.comments.index', [
+        return view(SiteTheme::view('member.comments-index', 'themes.default.member.comments-index'), [
             'user' => $request->user(),
             'comments' => $comments,
             'filters' => $filters,

@@ -11,6 +11,8 @@ class Comment extends BaseComment
 {
     use HasFactory;
 
+    public const MAX_THREAD_DEPTH = 6;
+
     protected $fillable = [
         'author_id',
         'author_type',
@@ -77,5 +79,18 @@ class Comment extends BaseComment
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');
+    }
+
+    public function depth(): int
+    {
+        $depth = 0;
+        $current = $this->parent;
+
+        while ($current) {
+            $depth++;
+            $current = $current->parent;
+        }
+
+        return $depth;
     }
 }

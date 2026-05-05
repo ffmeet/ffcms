@@ -1,6 +1,8 @@
 <div
     x-data="ecmsAdminQuickSearch({
         endpoint: @js(route('admin.quick-search')),
+        staffProfileOpen: @js(session('open_staff_profile_modal', false) || $errors->getBag('staffProfile')->any()),
+        settingsOpen: @js(request()->routeIs('filament.admin.pages.settings-center')),
     })"
     x-on:keydown.window.prevent.meta.k="open()"
     x-on:keydown.window.prevent.ctrl.k="open()"
@@ -20,11 +22,27 @@
         $tagUrl = \App\Filament\Resources\Tags\TagResource::getUrl();
         $commentUrl = \App\Filament\Resources\Comments\CommentResource::getUrl();
         $userUrl = \App\Filament\Resources\Users\UserResource::getUrl();
+        $productUrl = \App\Filament\Resources\Products\ProductResource::getUrl();
+        $orderUrl = \App\Filament\Resources\Orders\OrderResource::getUrl();
+        $paymentUrl = \App\Filament\Resources\Payments\PaymentResource::getUrl();
+        $subscriptionUrl = \App\Filament\Resources\UserSubscriptions\UserSubscriptionResource::getUrl();
+        $eventUrl = \App\Filament\Resources\Events\EventResource::getUrl();
+        $eventRegistrationUrl = \App\Filament\Resources\EventRegistrations\EventRegistrationResource::getUrl();
         $userCount = \App\Models\User::query()->count();
         $mediaUrl = url('/admin/media-manager');
         $settingsUrl = \App\Filament\Pages\SettingsCenter::getUrl();
         $helpUrl = \App\Filament\Pages\HelpCenter::getUrl();
+        $settingsPage = app(\App\Filament\Pages\SettingsCenter::class);
+        $settingsSections = $settingsPage->getSettingSections();
+        $settingsOverviewCards = $settingsPage->getOverviewCards();
         $profileUrl = $currentUser ? \App\Filament\Resources\Users\UserResource::getUrl('edit', ['record' => $currentUser]) : $userUrl;
+        $staffProfileUrl = route('admin.staff-profile.update');
+        $staffProfileAvatar = $currentUser?->avatarUrl('medium') ?? $currentUser?->avatarUrl('small');
+        $staffProfileName = old('display_name', $currentUser?->display_name ?: $currentUser?->public_display_name);
+        $staffProfileEmail = old('email', $currentUser?->email);
+        $staffProfileNickname = old('nickname', $currentUser?->nickname);
+        $staffProfileBio = old('bio', $currentUser?->bio);
+        $staffRoleLabel = $currentUser?->backend_role_label ?? '普通会员';
         $currentView = request('view');
         $isArticleChildActive = request()->routeIs('filament.admin.resources.posts.index') && $currentView === 'article';
         $isFlashChildActive = request()->routeIs('filament.admin.resources.posts.index') && $currentView === 'flash';
@@ -46,6 +64,42 @@
                 'label' => '草稿',
                 'url' => $draftPostUrl,
                 'active' => $isDraftChildActive,
+            ],
+        ];
+        $isProductChildActive = request()->routeIs('filament.admin.resources.products.*');
+        $isOrderChildActive = request()->routeIs('filament.admin.resources.orders.*');
+        $isPaymentChildActive = request()->routeIs('filament.admin.resources.payments.*');
+        $isSubscriptionChildActive = request()->routeIs('filament.admin.resources.user-subscriptions.*');
+        $isCommerceChildActive = $isProductChildActive || $isOrderChildActive || $isPaymentChildActive || $isSubscriptionChildActive;
+        $isEventChildActive = request()->routeIs('filament.admin.resources.events.*');
+        $isEventRegistrationChildActive = request()->routeIs('filament.admin.resources.event-registrations.*');
+        $commerceChildren = [
+            [
+                'label' => '商品',
+                'url' => $productUrl,
+                'active' => $isProductChildActive,
+            ],
+            [
+                'label' => '订单',
+                'url' => $orderUrl,
+                'active' => $isOrderChildActive,
+            ],
+            [
+                'label' => '支付',
+                'url' => $paymentUrl,
+                'active' => $isPaymentChildActive,
+            ],
+            [
+                'label' => '订阅',
+                'url' => $subscriptionUrl,
+                'active' => $isSubscriptionChildActive,
+            ],
+        ];
+        $eventChildren = [
+            [
+                'label' => '活动报名',
+                'url' => $eventRegistrationUrl,
+                'active' => $isEventRegistrationChildActive,
             ],
         ];
         $primaryItems = [
@@ -74,6 +128,24 @@
                 'icon' => 'heroicon-o-photo',
                 'url' => $mediaUrl,
                 'active' => request()->is('admin/media-manager'),
+            ],
+        ];
+        $commerceItems = [
+            [
+                'label' => '商店',
+                'icon' => 'heroicon-o-shopping-bag',
+                'url' => $productUrl,
+                'active' => false,
+                'expanded' => $isCommerceChildActive,
+                'children' => $commerceChildren,
+            ],
+            [
+                'label' => '活动',
+                'icon' => 'heroicon-o-calendar-days',
+                'url' => $eventUrl,
+                'active' => $isEventChildActive,
+                'expanded' => $isEventChildActive || $isEventRegistrationChildActive,
+                'children' => $eventChildren,
             ],
         ];
         $secondaryItems = [
@@ -108,13 +180,7 @@
             <header class="fi-sidebar-header">
                 <div class="fi-sidebar-header-logo-ctn">
                     <a {{ \Filament\Support\generate_href_html($homeUrl) }}>
-                        <span x-show="$store.sidebar.isOpen" x-cloak>
-                            <x-filament-panels::logo />
-                        </span>
-
-                        <span x-show="! $store.sidebar.isOpen" x-cloak class="ecms-brand-compact ecms-sidebar-floating-mark">
-                            帝
-                        </span>
+                        <x-filament-panels::logo />
                     </a>
                 </div>
             </header>
@@ -173,6 +239,59 @@
                 @endforeach
             </div>
 
+            <div class="ecms-sidebar-section ecms-sidebar-section-commerce">
+                @foreach ($commerceItems as $item)
+                    @if (filled($item['children'] ?? []))
+                        <div
+                            x-data="{ open: @js($item['expanded'] ?? $item['active']), hover: false }"
+                            @mouseenter="hover = true"
+                            @mouseleave="hover = false"
+                            @class([
+                                'ecms-sidebar-node ecms-sidebar-node-commerce',
+                                'is-active' => $item['expanded'] ?? $item['active'],
+                                'has-flyout' => filled($item['children'] ?? []),
+                            ])
+                        >
+                            <div class="ecms-sidebar-node-head {{ ($item['active'] ?? false) ? 'is-active' : '' }}">
+                                <a href="{{ $item['url'] }}" class="ecms-sidebar-link {{ ($item['active'] ?? false) ? 'is-active' : '' }}">
+                                    <x-dynamic-component :component="$item['icon']" class="ecms-sidebar-link-icon" />
+                                    <span x-show="$store.sidebar.isOpen" x-cloak class="ecms-sidebar-link-label">{{ $item['label'] }}</span>
+                                </a>
+
+                                <button
+                                    type="button"
+                                    class="ecms-sidebar-toggle-btn"
+                                    title="展开{{ $item['label'] }}"
+                                    x-show="$store.sidebar.isOpen"
+                                    x-cloak
+                                    @click="open = ! open"
+                                >
+                                    <x-heroicon-o-chevron-down class="ecms-sidebar-toggle-icon" x-bind:class="{ 'is-open': open }" />
+                                </button>
+                            </div>
+
+                            <div
+                                class="ecms-sidebar-flyout"
+                                x-cloak
+                                x-show="$store.sidebar.isOpen && (open || hover)"
+                                x-transition.opacity.duration.150ms
+                            >
+                                @foreach ($item['children'] as $child)
+                                    <a href="{{ $child['url'] }}" class="ecms-sidebar-child-link {{ $child['active'] ? 'is-active' : '' }}">
+                                        {{ $child['label'] }}
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    @else
+                        <a href="{{ $item['url'] }}" class="ecms-sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
+                            <x-dynamic-component :component="$item['icon']" class="ecms-sidebar-link-icon" />
+                            <span x-show="$store.sidebar.isOpen" x-cloak class="ecms-sidebar-link-label">{{ $item['label'] }}</span>
+                        </a>
+                    @endif
+                @endforeach
+            </div>
+
             <div class="ecms-sidebar-section ecms-sidebar-section-lower">
                 @foreach ($secondaryItems as $item)
                     <a href="{{ $item['url'] }}" class="ecms-sidebar-link {{ $item['active'] ? 'is-active' : '' }}">
@@ -190,10 +309,10 @@
 
         <div class="fi-sidebar-footer ecms-sidebar-footer" x-show="$store.sidebar.isOpen" x-cloak>
             <div class="ecms-sidebar-footer-links">
-                <a href="{{ $settingsUrl }}" class="ecms-sidebar-link {{ request()->routeIs('filament.admin.pages.settings-center') ? 'is-active' : '' }}">
+                <button type="button" class="ecms-sidebar-link w-full {{ request()->routeIs('filament.admin.pages.settings-center') ? 'is-active' : '' }}" @click="settingsOpen = true">
                     <x-heroicon-o-cog-6-tooth class="ecms-sidebar-link-icon" />
                     <span class="ecms-sidebar-link-label">设置</span>
-                </a>
+                </button>
 
                 <a href="{{ $helpUrl }}" class="ecms-sidebar-link {{ request()->routeIs('filament.admin.pages.help-center') ? 'is-active' : '' }}">
                     <x-heroicon-o-question-mark-circle class="ecms-sidebar-link-icon" />
@@ -205,17 +324,27 @@
                 <div x-data="{ open: false }" class="ecms-sidebar-user">
                     <button type="button" class="ecms-sidebar-user-trigger" @click="open = ! open">
                         <span class="ecms-sidebar-user-avatar">
-                            {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($currentUser->name ?: $currentUser->username ?: $currentUser->email, 0, 1)) }}
+                            @if ($currentUser->avatarUrl('small'))
+                                <img src="{{ $currentUser->avatarUrl('small') }}" alt="{{ $currentUser->public_display_name }}" style="width:100%;height:100%;border-radius:9999px;object-fit:cover;" />
+                            @else
+                                {{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($currentUser->public_display_name ?: $currentUser->username ?: $currentUser->email, 0, 1)) }}
+                            @endif
                         </span>
                         <span class="ecms-sidebar-user-copy">
-                            <strong>{{ $currentUser->name ?: $currentUser->username }}</strong>
+                            <strong>{{ $currentUser->public_display_name ?: $currentUser->username }}</strong>
                             <small>{{ $currentUser->email }}</small>
                         </span>
                         <x-heroicon-o-chevron-up-down class="ecms-sidebar-user-trigger-icon" />
                     </button>
 
                     <div x-cloak x-show="open" x-transition.origin.bottom.left @click.outside="open = false" class="ecms-sidebar-user-menu">
-                        <a href="{{ $profileUrl }}" class="ecms-sidebar-user-menu-link">个人资料</a>
+                        @if ($currentUser?->is_staff_account)
+                            <button type="button" class="ecms-sidebar-user-menu-link" @click="open = false; staffProfileOpen = true">
+                                个人资料
+                            </button>
+                        @endif
+
+                        <a href="{{ $profileUrl }}" class="ecms-sidebar-user-menu-link">资料设置</a>
                         <a href="{{ $homeUrl }}" class="ecms-sidebar-user-menu-link">返回后台首页</a>
 
                         <form method="POST" action="{{ route('filament.admin.auth.logout') }}">
@@ -289,13 +418,134 @@
         </div>
     </div>
 
+    @if ($currentUser?->is_staff_account)
+        <div
+            class="ecms-staff-profile-overlay"
+            x-cloak
+            x-show="staffProfileOpen"
+            x-transition.opacity
+            @click.self="staffProfileOpen = false"
+        >
+            <div class="ecms-staff-profile-panel" x-transition @click.stop>
+                <div class="ecms-staff-profile-cover"></div>
+
+                <div class="ecms-staff-profile-head">
+                    <div class="ecms-staff-profile-avatar">
+                        @if (filled($staffProfileAvatar))
+                            <img src="{{ $staffProfileAvatar }}" alt="{{ $staffProfileName }}">
+                        @else
+                            <span>{{ \Illuminate\Support\Str::upper(\Illuminate\Support\Str::substr($currentUser->public_display_name, 0, 1)) }}</span>
+                        @endif
+                    </div>
+                    <div class="ecms-staff-profile-copy">
+                        <h3>{{ $staffProfileName ?: $currentUser->public_display_name }}</h3>
+                        <p>{{ $currentUser->memberGroup?->name ?? '未分组' }} · {{ $staffRoleLabel }}</p>
+                    </div>
+                    <button type="button" class="ecms-staff-profile-close" @click="staffProfileOpen = false">×</button>
+                </div>
+
+                <form method="POST" action="{{ $staffProfileUrl }}" class="ecms-staff-profile-form">
+                    @csrf
+                    @method('PUT')
+
+                    <div class="ecms-staff-profile-grid">
+                        <div class="ecms-staff-profile-field">
+                            <label for="staff-profile-email">邮箱</label>
+                            <input id="staff-profile-email" name="email" type="email" value="{{ $staffProfileEmail }}" class="@if($errors->getBag('staffProfile')->has('email')) is-error @endif">
+                            @error('email', 'staffProfile')
+                                <div class="ecms-staff-profile-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="ecms-staff-profile-field">
+                            <label for="staff-profile-role">角色</label>
+                            <input id="staff-profile-role" type="text" value="{{ $staffRoleLabel }}" readonly>
+                        </div>
+                    </div>
+
+                    <div class="ecms-staff-profile-field">
+                        <label for="staff-profile-display-name">全名</label>
+                        <input id="staff-profile-display-name" name="display_name" type="text" value="{{ $staffProfileName }}" class="@if($errors->getBag('staffProfile')->has('display_name')) is-error @endif">
+                        @error('display_name', 'staffProfile')
+                            <div class="ecms-staff-profile-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="ecms-staff-profile-field">
+                        <label for="staff-profile-username">用户名</label>
+                        <input id="staff-profile-username" type="text" value="{{ $currentUser->username }}" readonly>
+                    </div>
+
+                    <div class="ecms-staff-profile-field">
+                        <label for="staff-profile-nickname">公开昵称</label>
+                        <input id="staff-profile-nickname" name="nickname" type="text" value="{{ $staffProfileNickname }}" class="@if($errors->getBag('staffProfile')->has('nickname')) is-error @endif">
+                        @error('nickname', 'staffProfile')
+                            <div class="ecms-staff-profile-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="ecms-staff-profile-field">
+                        <label for="staff-profile-bio">自我简介</label>
+                        <textarea id="staff-profile-bio" name="bio" rows="4" class="@if($errors->getBag('staffProfile')->has('bio')) is-error @endif">{{ $staffProfileBio }}</textarea>
+                        @error('bio', 'staffProfile')
+                            <div class="ecms-staff-profile-error">{{ $message }}</div>
+                        @enderror
+                    </div>
+
+                    <div class="ecms-staff-profile-grid">
+                        <div class="ecms-staff-profile-field">
+                            <label for="staff-profile-password">新密码</label>
+                            <input id="staff-profile-password" name="password" type="password" class="@if($errors->getBag('staffProfile')->has('password')) is-error @endif">
+                            @error('password', 'staffProfile')
+                                <div class="ecms-staff-profile-error">{{ $message }}</div>
+                            @enderror
+                        </div>
+
+                        <div class="ecms-staff-profile-field">
+                            <label for="staff-profile-password-confirmation">确认密码</label>
+                            <input id="staff-profile-password-confirmation" name="password_confirmation" type="password">
+                        </div>
+                    </div>
+
+                    <div class="ecms-staff-profile-actions">
+                        <button type="button" class="ecms-staff-profile-secondary" @click="staffProfileOpen = false">关闭</button>
+                        <button type="submit" class="ecms-staff-profile-primary">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    <div
+        class="ecms-settings-modal-overlay"
+        x-cloak
+        x-show="settingsOpen"
+        x-transition.opacity
+        @click.self="settingsOpen = false"
+    >
+        <div class="ecms-settings-modal-panel" x-transition @click.stop>
+            <div class="ecms-settings-modal-head">
+                <div>
+                    <h2>设置中心</h2>
+                </div>
+                <button type="button" class="ecms-settings-modal-close" @click="settingsOpen = false">×</button>
+            </div>
+
+            <div class="ecms-settings-modal-body">
+                @livewire('admin.settings-workbench')
+            </div>
+        </div>
+    </div>
+
     <x-filament-actions::modals />
 
     <script>
         document.addEventListener('alpine:init', () => {
-            Alpine.data('ecmsAdminQuickSearch', ({ endpoint }) => ({
+            Alpine.data('ecmsAdminQuickSearch', ({ endpoint, staffProfileOpen = false, settingsOpen = false }) => ({
                 endpoint,
                 isOpen: false,
+                staffProfileOpen,
+                settingsOpen,
                 isLoading: false,
                 query: '',
                 results: [],

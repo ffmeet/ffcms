@@ -26,6 +26,13 @@ class UsersTable
                     ->label('会员组')
                     ->searchable()
                     ->sortable(),
+                BadgeColumn::make('backend_role_label')
+                    ->label('账号类型')
+                    ->colors([
+                        'danger' => '管理员',
+                        'warning' => 'Staff',
+                        'gray' => '普通会员',
+                    ]),
                 TextColumn::make('posts_count')
                     ->label('文章数')
                     ->counts('posts')
@@ -57,6 +64,12 @@ class UsersTable
                     ->options([
                         'active' => '正常',
                         'inactive' => '停用',
+                    ]),
+                SelectFilter::make('is_staff')
+                    ->label('后台权限')
+                    ->options([
+                        '1' => 'Staff / 管理员',
+                        '0' => '仅普通会员',
                     ]),
             ])
             ->recordActions([

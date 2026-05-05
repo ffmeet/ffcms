@@ -61,7 +61,11 @@ class ListUsers extends ListRecords
     {
         return User::query()
             ->with('memberGroup')
-            ->withCount(['posts', 'comments'])
+            ->withCount([
+                'posts',
+                'comments',
+                'subscriptions as active_subscriptions_count' => fn ($query) => $query->where('status', 'active'),
+            ])
             ->when(filled($this->search), function ($query): void {
                 $query->where(function ($nested): void {
                     $nested

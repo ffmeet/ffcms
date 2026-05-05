@@ -16,6 +16,10 @@
                     <div class="ecms-posts-bulk-actions">
                         <span class="ecms-posts-bulk-count">已选择 {{ count($this->selectedPostIds) }} 项</span>
 
+                        <x-filament::button size="sm" color="primary" wire:click="approveSelected">
+                            批量审核
+                        </x-filament::button>
+
                         <x-filament::button size="sm" color="gray" wire:click="deleteSelected">
                             批量删除
                         </x-filament::button>

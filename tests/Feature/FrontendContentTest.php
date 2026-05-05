@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attachment;
 use App\Models\Category;
 use App\Models\Comment;
 use App\Models\ContentModel;
@@ -80,6 +81,132 @@ class FrontendContentTest extends TestCase
             ->assertDontSee('这是一条待审核评论');
     }
 
+    public function test_post_detail_page_can_render_custom_cover_image_url_from_member_submission_flow(): void
+    {
+        [, $post] = $this->createPublishedPost();
+
+        $post->detail()->create([
+            'content' => '<p>这里是文章正文。</p>',
+            'custom_fields' => [
+                'summary' => '带自定义封面的文章摘要',
+                'cover_image_url' => 'https://cdn.example.com/frontend-cover.jpg',
+            ],
+        ]);
+
+        $this->get("/posts/{$post->slug}")
+            ->assertOk()
+            ->assertSee('https://cdn.example.com/frontend-cover.jpg')
+            ->assertSee('带自定义封面的文章摘要');
+    }
+
+    public function test_post_detail_page_can_render_member_selected_attachments_from_custom_fields(): void
+    {
+        [, $post] = $this->createPublishedPost();
+
+        $attachment = Attachment::create([
+            'user_id' => $post->user_id,
+            'filename' => 'member-manual.pdf',
+            'filepath' => 'attachments/member-manual.pdf',
+            'mime_type' => 'application/pdf',
+            'size' => 2048,
+        ]);
+
+        $post->detail()->create([
+            'content' => '<p>这里是文章正文。</p>',
+            'custom_fields' => [
+                'summary' => '带正文附件的文章摘要',
+                'attachment_ids' => [$attachment->id],
+            ],
+        ]);
+
+        $this->get("/posts/{$post->slug}")
+            ->assertOk()
+            ->assertSee('member-manual.pdf')
+            ->assertSee('/storage/attachments/member-manual.pdf');
+    }
+
+    public function test_post_detail_page_shows_thread_metadata_for_replies(): void
+    {
+        [$category, $post] = $this->createPublishedPost();
+
+        $otherUser = User::factory()->create();
+
+        $parent = Comment::create([
+            'user_id' => $post->user_id,
+            'post_id' => $post->id,
+            'content' => '楼主主评论',
+            'status' => 'approved',
+        ]);
+
+        Comment::create([
+            'user_id' => $otherUser->id,
+            'post_id' => $post->id,
+            'parent_id' => $parent->id,
+            'content' => '这是楼层回复',
+            'status' => 'approved',
+        ]);
+
+        $this->get("/posts/{$post->slug}")
+            ->assertOk()
+            ->assertSee('楼主')
+            ->assertSee('1 条回复')
+            ->assertSee('回复 '.$post->user->username)
+            ->assertSee($category->name);
+    }
+
+    public function test_post_detail_page_shows_nested_replies(): void
+    {
+        [, $post] = $this->createPublishedPost();
+
+        $otherUser = User::factory()->create();
+        $thirdUser = User::factory()->create();
+
+        $parent = Comment::create([
+            'user_id' => $post->user_id,
+            'post_id' => $post->id,
+            'content' => '第一层评论',
+            'status' => 'approved',
+        ]);
+
+        $reply = Comment::create([
+            'user_id' => $otherUser->id,
+            'post_id' => $post->id,
+            'parent_id' => $parent->id,
+            'content' => '第二层评论',
+            'status' => 'approved',
+        ]);
+
+        Comment::create([
+            'user_id' => $thirdUser->id,
+            'post_id' => $post->id,
+            'parent_id' => $reply->id,
+            'content' => '第三层评论',
+            'status' => 'approved',
+        ]);
+
+        $this->get("/posts/{$post->slug}")
+            ->assertOk()
+            ->assertSee('第三层评论')
+            ->assertSee('第 3 层');
+    }
+
+    public function test_post_detail_page_can_open_target_reply_panel_from_query_string(): void
+    {
+        [, $post] = $this->createPublishedPost();
+
+        $parent = Comment::create([
+            'user_id' => $post->user_id,
+            'post_id' => $post->id,
+            'content' => '请展开我的回复面板',
+            'status' => 'approved',
+        ]);
+
+        $this->actingAs($post->user)
+            ->get("/posts/{$post->slug}?reply={$parent->id}")
+            ->assertOk()
+            ->assertSee('收起回复');
+    }
+
     public function test_authenticated_user_can_submit_frontend_comment(): void
     {
         [, $post] = $this->createPublishedPost();
@@ -88,7 +215,7 @@ class FrontendContentTest extends TestCase
             ->post("/posts/{$post->slug}/comments", [
                 'body' => '这是前台提交的新评论',
             ])
-            ->assertRedirect("/posts/{$post->slug}");
+            ->assertRedirect("/posts/{$post->slug}?focus=1#comment-1");
 
         $this->assertDatabaseHas('comments', [
             'commentable_type' => Post::class,
@@ -116,7 +243,7 @@ class FrontendContentTest extends TestCase
                 'body' => '这是前台提交的回复',
                 'parent_id' => $parentComment->id,
             ])
-            ->assertRedirect("/posts/{$post->slug}");
+            ->assertRedirect("/posts/{$post->slug}?reply={$parentComment->id}&focus={$parentComment->id}#comment-{$parentComment->id}");
 
         $this->assertDatabaseHas('comments', [
             'commentable_type' => Post::class,
@@ -128,6 +255,56 @@ class FrontendContentTest extends TestCase
             'body' => '这是前台提交的回复',
             'status' => 'pending',
         ]);
+    }
+
+    public function test_authenticated_user_can_submit_reply_to_reply(): void
+    {
+        [, $post] = $this->createPublishedPost();
+
+        $parentComment = Comment::create([
+            'user_id' => $post->user_id,
+            'post_id' => $post->id,
+            'content' => '主评论',
+            'status' => 'approved',
+        ]);
+
+        $replyComment = Comment::create([
+            'user_id' => $post->user_id,
+            'post_id' => $post->id,
+            'parent_id' => $parentComment->id,
+            'content' => '子回复',
+            'status' => 'approved',
+        ]);
+
+        $this->actingAs($post->user)
+            ->post("/posts/{$post->slug}/comments", [
+                'body' => '这是更深一层的回复',
+                'parent_id' => $replyComment->id,
+            ])
+            ->assertRedirect("/posts/{$post->slug}?reply={$replyComment->id}&focus={$replyComment->id}#comment-{$replyComment->id}");
+
+        $this->assertDatabaseHas('comments', [
+            'post_id' => $post->id,
+            'parent_id' => $replyComment->id,
+            'body' => '这是更深一层的回复',
+            'status' => 'pending',
+        ]);
+    }
+
+    public function test_post_detail_page_can_highlight_focused_thread(): void
+    {
+        [, $post] = $this->createPublishedPost();
+
+        $parent = Comment::create([
+            'user_id' => $post->user_id,
+            'post_id' => $post->id,
+            'content' => '请高亮我的讨论串',
+            'status' => 'approved',
+        ]);
+
+        $this->get("/posts/{$post->slug}?focus={$parent->id}")
+            ->assertOk()
+            ->assertSee('已定位');
     }
 
     public function test_tag_archive_lists_related_posts(): void
@@ -185,8 +362,8 @@ class FrontendContentTest extends TestCase
         ]);
 
         $post = Post::create([
-            'title' => '帝国 CMS 前台骨架文章',
-            'slug' => 'empire-cms-frontend-post',
+            'title' => 'FFMeet 前台骨架文章',
+            'slug' => 'ffmeet-frontend-post',
             'category_id' => $category->id,
             'model_id' => $contentModel->id,
             'user_id' => $user->id,
