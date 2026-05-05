@@ -157,6 +157,13 @@ composer package:source
 - 用真实流量验证前台、会员、内容、活动、商品与订单链路
 - 后续再按单一优先渠道补正式支付
 
+  ## 截图
+  ![Uploading 会员中心-05-05-2026_08_16_PM.png…]()
+<img width="3072" height="1990" alt="深圳前端开发者线下沙龙-小芳侠-05-05-2026_08_16_PM" src="https://github.com/user-attachments/assets/7d8df483-7fd7-45d0-a91e-de4312c1d09c" />
+<img width="3072" height="1990" alt="Dashboard-小芳侠-控制台-05-05-2026_08_17_PM" src="https://github.com/user-attachments/assets/8afdc2e9-8fb0-47fb-950d-5f7857a4f555" />
+<img width="3072" height="1990" alt="文章-小芳侠-控制台-05-05-2026_08_17_PM" src="https://github.com/user-attachments/assets/b83ab690-b8c8-40ab-8e1e-57e6aeac78c5" />
+
+
 ## 许可证
 
 当前仓库附带：
